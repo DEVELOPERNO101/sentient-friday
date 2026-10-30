@@ -2,6 +2,7 @@ export type KnowledgeNote = {
   id: string;
   title: string;
   path: string;
+  vaultPath?: string;
   tags: string[];
   content: string;
   updatedAt: string;
@@ -82,6 +83,38 @@ The original project uses AGPL-3.0 and a CLA/commercial licensing path. This cod
   }
 ];
 
+function resolveLocalKnowledgeBasePath(): string {
+  const platform = typeof navigator === 'undefined'
+    ? 'unknown'
+    : navigator.userAgent.toLowerCase().includes('win')
+      ? 'windows'
+      : navigator.userAgent.toLowerCase().includes('mac')
+        ? 'macos'
+        : 'linux';
+
+  const runtimeProcess = (globalThis as { process?: { env?: Record<string, string> } }).process;
+  const home = runtimeProcess?.env
+    ? platform === 'windows'
+      ? runtimeProcess.env.USERPROFILE || 'C:\\Users\\Default'
+      : runtimeProcess.env.HOME || '/home/default'
+    : platform === 'windows'
+      ? 'C:\\Users\\Default'
+      : platform === 'macos'
+        ? '/Users/default'
+        : '/home/default';
+
+  const pathRoot = home.replace(/[\\/]+$/, '');
+  const vaultName = 'Sentient OS - Knowledge Base';
+
+  return platform === 'windows' ? `${pathRoot}\\${vaultName}` : `${pathRoot}/${vaultName}`;
+}
+
+function buildVaultFilePath(notePath: string): string {
+  const normalized = notePath.replace(/^[/\\]+/, '').replace(/^[.]/, '');
+  const separator = navigator.userAgent.toLowerCase().includes('win') ? '\\' : '/';
+  return `${resolveLocalKnowledgeBasePath()}${separator}${normalized}`;
+}
+
 export function buildNotePath(title: string): string {
   const slug = title
     .trim()
@@ -131,7 +164,7 @@ export function filterNotesByTag(notes: KnowledgeNote[], activeTag: string, sear
 
 export function createNoteFromDraft(title: string, content: string, tags: string[] = ['draft']): KnowledgeNote {
   const safeTitle = title.trim() || 'Untitled note';
-  return {
+  const note = {
     id: `${safeTitle.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
     title: safeTitle,
     path: buildNotePath(safeTitle),
@@ -139,6 +172,15 @@ export function createNoteFromDraft(title: string, content: string, tags: string
     content,
     updatedAt: new Date().toISOString()
   };
+
+  return {
+    ...note,
+    vaultPath: buildVaultFilePath(note.path)
+  };
+}
+
+export function buildVaultSnapshot(note: Pick<KnowledgeNote, 'path'>): string {
+  return buildVaultFilePath(note.path);
 }
 
 export function saveNoteToVault(notes: KnowledgeNote[], nextNote: KnowledgeNote): KnowledgeNote[] {
@@ -147,7 +189,8 @@ export function saveNoteToVault(notes: KnowledgeNote[], nextNote: KnowledgeNote)
     path: nextNote.path || buildNotePath(nextNote.title),
     tags: nextNote.tags.map(normalizeTag).filter(Boolean),
     title: nextNote.title.trim() || 'Untitled note',
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    vaultPath: buildVaultFilePath(nextNote.path || buildNotePath(nextNote.title))
   };
 
   const next = [...notes];
@@ -168,13 +211,26 @@ export function buildMarkdownDocument(note: KnowledgeNote): string {
 }
 
 export function readVaultFromStorage(raw: string | null): KnowledgeNote[] {
-  if (!raw) return DEFAULT_KNOWLEDGE_NOTES;
+  if (!raw) {
+    return DEFAULT_KNOWLEDGE_NOTES.map((note) => ({
+      ...note,
+      vaultPath: buildVaultFilePath(note.path)
+    }));
+  }
 
   try {
     const parsed = JSON.parse(raw) as KnowledgeNote[];
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_KNOWLEDGE_NOTES;
+    const notes = Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_KNOWLEDGE_NOTES;
+
+    return notes.map((note) => ({
+      ...note,
+      vaultPath: buildVaultFilePath(note.path || buildNotePath(note.title))
+    }));
   } catch {
-    return DEFAULT_KNOWLEDGE_NOTES;
+    return DEFAULT_KNOWLEDGE_NOTES.map((note) => ({
+      ...note,
+      vaultPath: buildVaultFilePath(note.path)
+    }));
   }
 }
 

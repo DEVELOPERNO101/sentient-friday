@@ -112,6 +112,11 @@ textarea {
   color: #dfeefe;
 }
 
+.settings-button {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
 .note-list {
   display: flex;
   flex-direction: column;
@@ -197,6 +202,29 @@ textarea {
 .hero-copy p:last-child {
   margin: 0;
   color: #d7ebff;
+}
+
+.runtime-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.runtime-summary span {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #acd4ff;
+}
+
+.runtime-summary strong {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  word-break: break-word;
+  color: #eef7ff;
 }
 
 .hero-actions {
@@ -389,6 +417,61 @@ textarea {
   background: rgba(30, 41, 59, 0.9);
   padding: 0.12em 0.35em;
   border-radius: 5px;
+}
+
+.onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.72);
+  z-index: 30;
+}
+
+.onboarding-panel,
+.settings-drawer {
+  background: rgba(9, 19, 30, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 30px 70px rgba(2, 6, 23, 0.7);
+}
+
+.onboarding-panel {
+  width: min(540px, 100%);
+  padding: 24px;
+}
+
+.onboarding-panel h3 {
+  margin: 0 0 12px;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.settings-drawer {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: min(360px, calc(100vw - 24px));
+  padding: 18px;
+  z-index: 25;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.drawer-header h3 {
+  margin: 0;
 }
 
 @media (max-width: 920px) {

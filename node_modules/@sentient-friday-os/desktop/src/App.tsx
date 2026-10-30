@@ -1,7 +1,9 @@
+import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useMemo, useState } from 'react';
 import {
   DEFAULT_KNOWLEDGE_NOTES,
   KnowledgeNote,
+  buildMarkdownDocument,
   createNoteFromDraft,
   filterNotesByTag,
   getUniqueTags,
@@ -10,10 +12,20 @@ import {
   renderMarkdownToHtml,
   saveNoteToVault
 } from './knowledge';
+import {
+  RuntimeSettings,
+  buildVaultFilePath,
+  getRuntimeConfig,
+  getRuntimeSettings,
+  isTauriRuntime,
+  resolveKnowledgeBasePath,
+  saveRuntimeSettings
+} from './runtime';
 
 const STORAGE_KEY = 'sentient-knowledge-vault';
 
 export default function App() {
+  const [settings, setSettings] = useState<RuntimeSettings>(getRuntimeSettings());
   const [notes, setNotes] = useState<KnowledgeNote[]>(DEFAULT_KNOWLEDGE_NOTES);
   const [selectedId, setSelectedId] = useState<string>(DEFAULT_KNOWLEDGE_NOTES[0].id);
   const [activeTag, setActiveTag] = useState<string>('all');
@@ -21,12 +33,20 @@ export default function App() {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftContent, setDraftContent] = useState('');
   const [draftTags, setDraftTags] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(!getRuntimeSettings().onboardingComplete);
+  const [showSettings, setShowSettings] = useState(false);
+  const [vaultDirectoryInput, setVaultDirectoryInput] = useState(settings.knowledgeBaseDirectory);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     const loaded = readVaultFromStorage(saved);
     setNotes(loaded);
     setSelectedId(loaded[0]?.id ?? DEFAULT_KNOWLEDGE_NOTES[0].id);
+
+    const runtimeSettings = getRuntimeSettings();
+    setSettings(runtimeSettings);
+    setVaultDirectoryInput(runtimeSettings.knowledgeBaseDirectory);
+    setShowOnboarding(!runtimeSettings.onboardingComplete);
   }, []);
 
   useEffect(() => {
@@ -51,15 +71,53 @@ export default function App() {
   }, [selectedNote]);
 
   const tags = useMemo(() => getUniqueTags(notes), [notes]);
+  const runtimeConfig = useMemo(() => getRuntimeConfig(), []);
 
-  const createNewNote = () => {
-    const fresh = createNoteFromDraft('New note', '# New note\n\nWrite something useful here.', ['draft']);
-    setNotes((current) => saveNoteToVault(current, fresh));
-    setSelectedId(fresh.id);
-    setActiveTag('all');
+  const persistNoteToDisk = async (nextNote: KnowledgeNote) => {
+    const vaultPath = nextNote.vaultPath ?? buildVaultFilePath(nextNote.path);
+    const contents = buildMarkdownDocument(nextNote);
+
+    if (isTauriRuntime()) {
+      try {
+        await invoke('write_note_file', { path: vaultPath, contents });
+        return;
+      } catch (error) {
+        console.warn('Falling back to browser storage for vault write:', error);
+      }
+    }
+
+    window.localStorage.setItem(`sentient-vault:${vaultPath}`, contents);
   };
 
-  const saveDraft = () => {
+  const applySettings = (nextSettings: RuntimeSettings) => {
+    const saved = saveRuntimeSettings(nextSettings);
+    setSettings(saved);
+    setVaultDirectoryInput(saved.knowledgeBaseDirectory);
+    setShowOnboarding(false);
+    setShowSettings(false);
+  };
+
+  const onboardingComplete = () => {
+    const nextSettings: RuntimeSettings = {
+      ...settings,
+      onboardingComplete: true,
+      knowledgeBaseDirectory: vaultDirectoryInput.trim() || resolveKnowledgeBasePath(),
+      mainModelProvider: settings.mainModelProvider,
+      doubleTapModelProvider: settings.doubleTapModelProvider
+    };
+    applySettings(nextSettings);
+  };
+
+  const createNewNote = async () => {
+    const fresh = createNoteFromDraft('New note', '# New note\n\nWrite something useful here.', ['draft']);
+    const nextNotes = saveNoteToVault(notes, fresh);
+    setNotes(nextNotes);
+    setSelectedId(fresh.id);
+    setActiveTag('all');
+    await persistNoteToDisk(fresh);
+  };
+
+  const saveDraft = async () => {
     if (!selectedNote) return;
 
     const updated = {
@@ -68,11 +126,14 @@ export default function App() {
       path: selectedNote.path || `notes/${draftTitle.trim().toLowerCase().replace(/\s+/g, '-')}.md`,
       content: draftContent,
       tags: parseTags(draftTags || 'updated'),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      vaultPath: buildVaultFilePath(selectedNote.path || `notes/${draftTitle.trim().toLowerCase().replace(/\s+/g, '-')}.md`)
     };
 
-    setNotes((current) => saveNoteToVault(current, updated));
+    const nextNotes = saveNoteToVault(notes, updated);
+    setNotes(nextNotes);
     setSelectedId(updated.id);
+    await persistNoteToDisk(updated);
   };
 
   const previewMarkup = selectedNote
@@ -88,6 +149,106 @@ export default function App() {
 
   return (
     <main className="app-shell knowledge-shell">
+      {showOnboarding && (
+        <div className="onboarding-backdrop">
+          <div className="onboarding-panel">
+            <p className="eyebrow">Setup</p>
+            <h3>Welcome to Sentient OS</h3>
+            <p>
+              Choose where your knowledge vault should live and confirm the default model stack.
+            </p>
+
+            <label className="field-label">
+              <span>Knowledge vault folder</span>
+              <input
+                className="title-input"
+                value={vaultDirectoryInput}
+                onChange={(event) => setVaultDirectoryInput(event.target.value)}
+              />
+            </label>
+
+            <label className="field-label">
+              <span>Main model</span>
+              <select
+                className="title-input"
+                value={settings.mainModelProvider}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    mainModelProvider: event.target.value as RuntimeSettings['mainModelProvider']
+                  }))
+                }
+              >
+                <option value="ollama">Ollama</option>
+                <option value="llama-cpp">llama.cpp</option>
+                <option value="lm-studio">LM Studio</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openrouter">OpenRouter</option>
+              </select>
+            </label>
+
+            <label className="field-label">
+              <span>Double Tap model</span>
+              <select
+                className="title-input"
+                value={settings.doubleTapModelProvider}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    doubleTapModelProvider: event.target.value as RuntimeSettings['doubleTapModelProvider']
+                  }))
+                }
+              >
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="ollama">Ollama</option>
+                <option value="llama-cpp">llama.cpp</option>
+                <option value="lm-studio">LM Studio</option>
+                <option value="openrouter">OpenRouter</option>
+              </select>
+            </label>
+
+            <div className="onboarding-actions">
+              <button type="button" className="primary-button" onClick={onboardingComplete}>
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettings && (
+        <div className="settings-drawer">
+          <div className="drawer-header">
+            <h3>Vault settings</h3>
+            <button type="button" className="ghost-button" onClick={() => setShowSettings(false)}>
+              Close
+            </button>
+          </div>
+          <label className="field-label">
+            <span>Knowledge vault folder</span>
+            <input
+              className="title-input"
+              value={vaultDirectoryInput}
+              onChange={(event) => setVaultDirectoryInput(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() =>
+              applySettings({
+                ...settings,
+                knowledgeBaseDirectory: vaultDirectoryInput.trim() || resolveKnowledgeBasePath()
+              })
+            }
+          >
+            Save settings
+          </button>
+        </div>
+      )}
+
       <aside className="sidebar knowledge-sidebar">
         <div className="brand-block">
           <div className="brand-mark">S</div>
@@ -97,8 +258,12 @@ export default function App() {
           </div>
         </div>
 
-        <button type="button" className="primary-button" onClick={createNewNote}>
+        <button type="button" className="primary-button" onClick={() => void createNewNote()}>
           New note
+        </button>
+
+        <button type="button" className="ghost-button settings-button" onClick={() => setShowSettings(true)}>
+          Settings
         </button>
 
         <label className="search-wrap">
@@ -167,10 +332,14 @@ export default function App() {
               Keep your notes, follow-ups, and context organized in a local-first knowledge base
               that feels like a personal operating system, not a database.
             </p>
+            <div className="runtime-summary">
+              <span>{runtimeConfig.platform}</span>
+              <strong>{settings.knowledgeBaseDirectory || runtimeConfig.knowledgeBaseDirectory}</strong>
+            </div>
           </div>
 
           <div className="hero-actions">
-            <button type="button" className="secondary-button" onClick={createNewNote}>
+            <button type="button" className="secondary-button" onClick={() => void createNewNote()}>
               Capture thought
             </button>
             <button type="button" className="ghost-button">
@@ -192,7 +361,7 @@ export default function App() {
           <div className="editor-card">
             <div className="card-header">
               <h3>Edit note</h3>
-              <button type="button" className="secondary-button" onClick={saveDraft}>
+              <button type="button" className="secondary-button" onClick={() => void saveDraft()}>
                 Save to vault
               </button>
             </div>
@@ -231,7 +400,9 @@ export default function App() {
           <div className="preview-card">
             <div className="card-header">
               <h3>{selectedNote?.title ?? 'Note preview'}</h3>
-              <span className="path-label">{selectedNote?.path ?? 'notes/untitled.md'}</span>
+              <span className="path-label">
+                {selectedNote?.vaultPath ?? `${settings.knowledgeBaseDirectory}/${selectedNote?.path ?? 'notes/untitled.md'}`}
+              </span>
             </div>
 
             <div className="meta-row">
@@ -247,10 +418,7 @@ export default function App() {
               <span>Vault file: {selectedNote?.path ?? 'pending'}</span>
             </div>
 
-            <article
-              className="markdown-preview"
-              dangerouslySetInnerHTML={{ __html: previewMarkup }}
-            />
+            <article className="markdown-preview" dangerouslySetInnerHTML={{ __html: previewMarkup }} />
           </div>
         </div>
       </section>

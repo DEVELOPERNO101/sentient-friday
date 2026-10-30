@@ -7,6 +7,7 @@ import {
   renderMarkdownToHtml,
   saveNoteToVault
 } from './knowledge';
+import { getRuntimeConfig } from './runtime';
 
 describe('knowledge vault', () => {
   it('creates a note with a stable markdown path', () => {
@@ -42,5 +43,14 @@ describe('knowledge vault', () => {
     expect(html).toContain('<h1>Weekly brief</h1>');
     expect(html).toContain('<li>Review launch plan</li>');
     expect(html).toContain('<a href="#note-Projects">Projects</a>');
+  });
+
+  it('resolves a user-owned vault root and note file path', () => {
+    const runtime = getRuntimeConfig();
+    const note = createNoteFromDraft('Runtime path check', 'Vault path should be OS aware', ['runtime']);
+
+    expect(runtime.knowledgeBaseDirectory.length).toBeGreaterThan(0);
+    expect(note.vaultPath).toContain(runtime.knowledgeBaseDirectory);
+    expect(note.vaultPath).toContain('notes/runtime-path-check.md');
   });
 });

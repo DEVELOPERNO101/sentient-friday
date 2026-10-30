@@ -157,3 +157,11 @@ npm run dev
 done
 
 >>>>>>> 1adbff7 (Initial commit)
+
+### commit
+cd "C:\Users\Ethan\Downloads\sentient-friday-os"
+
+git checkout -B main
+git add .
+git commit -m "Initial project import"
+git push -u origin main --force-with-lease
