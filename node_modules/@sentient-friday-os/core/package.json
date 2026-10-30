@@ -1,0 +1,10 @@
+{
+  "name": "@sentient-friday-os/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Core package placeholder'",
+    "check": "echo 'Core package placeholder'"
+  }
+}

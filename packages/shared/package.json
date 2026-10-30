@@ -1,0 +1,10 @@
+{
+  "name": "@sentient-friday-os/shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Shared package placeholder'",
+    "check": "echo 'Shared package placeholder'"
+  }
+}

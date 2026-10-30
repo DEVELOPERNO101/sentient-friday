@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Sentient Friday OS",
+  "version": "0.1.0",
+  "identifier": "com.example.sentient-friday-os",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Sentient Friday OS",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "appimage",
+      "deb",
+      "rpm",
+      "nsis",
+      "msi",
+      "dmg"
+    ],
+    "icon": [],
+    "shortDescription": "Sentient Friday OS desktop app",
+    "longDescription": "A privacy-first, cross-platform local knowledge base and AI assistant desktop application.",
+    "copyright": "Copyright © 2026"
+  }
+}

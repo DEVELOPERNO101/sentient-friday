@@ -1,0 +1,10 @@
+{
+  "name": "@sentient-friday-os/agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Agent package placeholder'",
+    "check": "echo 'Agent package placeholder'"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@sentient-friday-os/models",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Models package placeholder'",
+    "check": "echo 'Models package placeholder'"
+  }
+}

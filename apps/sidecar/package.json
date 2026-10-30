@@ -1,0 +1,10 @@
+{
+  "name": "@sentient-friday-os/sidecar",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Sidecar build placeholder'",
+    "check": "echo 'Sidecar check placeholder'"
+  }
+}

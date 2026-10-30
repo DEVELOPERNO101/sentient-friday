@@ -1,0 +1,10 @@
+{
+  "name": "@sentient-friday-os/platform",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Platform package placeholder'",
+    "check": "echo 'Platform package placeholder'"
+  }
+}

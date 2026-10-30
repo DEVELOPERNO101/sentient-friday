@@ -1,0 +1,10 @@
+{
+  "name": "@sentient-friday-os/sources",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'Sources package placeholder'",
+    "check": "echo 'Sources package placeholder'"
+  }
+}

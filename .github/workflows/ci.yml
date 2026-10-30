@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  web-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build --workspace apps/desktop
+
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: cargo fmt --check
+      - run: cargo check --workspace
+
+  desktop-package:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            package_name: linux-appimage
+          - os: windows-latest
+            package_name: windows-msi
+          - os: macos-latest
+            package_name: macos-dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: npm install
+      - run: npm run build --workspace apps/desktop
+      - run: npm run tauri:build --workspace apps/desktop
+        if: matrix.package_name != 'linux-appimage'
+      - run: npm run tauri:build --workspace apps/desktop -- --bundles appimage
+        if: matrix.package_name == 'linux-appimage'
